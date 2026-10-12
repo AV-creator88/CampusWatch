@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusWatch | Intelligent Campus Water & Electricity Waste Detector</title>
+  <meta name="description"
+    content="Hackathon MVP: Real-time detection of abnormal water and electricity usage across campus from hourly meter readings with instant rupee, liter, and carbon impact calculation.">
+
+  <!-- Modern Typography from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #090d16;
+      --bg-surface: #111726;
+      --bg-surface-elevated: #182238;
+      --bg-glass: rgba(17, 23, 38, 0.75);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(56, 189, 248, 0.4);
+
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --cyan-glow: #06b6d4;
+      --emerald-glow: #10b981;
+      --amber-glow: #f59e0b;
+      --rose-glow: #f43f5e;
+      --indigo-glow: #6366f1;
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      line-height: 1.5;
+      overflow-x: hidden;
+      background-image:
+        radial-gradient(circle at 15% 10%, rgba(6, 182, 212, 0.07) 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, rgba(99, 102, 241, 0.07) 0%, transparent 45%),
+        radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+    }
+
+    /* Layout Container */
+    .app-container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 32px 64px;
+    }
+
+    /* Top Navigation Bar */
+    header.navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      margin-bottom: 28px;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #0ea5e9, #10b981);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(14, 165, 233, 0.35);
+    }
+
+    .brand-logo svg {
+      width: 26px;
+      height: 26px;
+      fill: none;
+      stroke: white;
+      stroke-width: 2.2;
+    }
+
+    .brand-text h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse-ring 2s infinite ease-out;
+    }
+
+    @keyframes pulse-ring {
+      0% {
+        transform: scale(0.95);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.4);
+        opacity: 0.4;
+      }
+
+      100% {
+        transform: scale(0.95);
+        opacity: 1;
+      }
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: var(--transition);
+      border: none;
+      text-decoration: none;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: white;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #e11d48, #be123c);
+      color: white;
+      box-shadow: 0 4px 14px rgba(225, 29, 72, 0.3);
+    }
+
+    .btn-danger:hover {
+      background: linear-gradient(135deg, #f43f5e, #e11d48);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(244, 63, 94, 0.4);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* KPI Summary Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .kpi-card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--card-accent, #38bdf8);
+    }
+
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .kpi-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .kpi-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--card-accent, #38bdf8);
+    }
+
+    .kpi-icon svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2;
+    }
+
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .kpi-subtext {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Campus Grid Section */
+    .section-title-wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+    }
+
+    .section-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .buildings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .building-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .building-card:hover {
+      border-color: var(--border-focus);
+      background: var(--bg-surface-elevated);
+      transform: translateY(-2px);
+    }
+
+    .building-card.active-selected {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px #38bdf8, 0 8px 24px rgba(56, 189, 248, 0.2);
+    }
+
+    .b-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .b-name {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .b-status-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .b-status-ok {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .b-status-alert {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      animation: alert-pulse 1.8s infinite;
+    }
+
+    @keyframes alert-pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 8px rgba(244, 63, 94, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+      }
+    }
+
+    .b-meters {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+    }
+
+    .meter-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .meter-type {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .meter-val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--text-main);
+      margin-top: 2px;
+    }
+
+    .meter-unit {
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      font-weight: normal;
+    }
+
+    /* Main Chart & Anomaly Feed 2-Column Split */
+    .dashboard-content-split {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 1080px) {
+      .dashboard-content-split {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Chart Card */
+    .chart-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .control-group {
+      display: inline-flex;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .toggle-btn {
+      padding: 6px 14px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .toggle-btn.active {
+      background: var(--bg-surface-elevated);
+      color: #38bdf8;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .chart-wrapper {
+      position: relative;
+      flex: 1;
+      min-height: 380px;
+    }
+
+    /* Alert Feed Card */
+    .alerts-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .alerts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .alerts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      max-height: 440px;
+      padding-right: 6px;
+    }
+
+    .alerts-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .alerts-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    .alert-item {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-subtle);
+      border-left: 4px solid var(--rose-glow);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      transition: var(--transition);
+    }
+
+    .alert-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(244, 63, 94, 0.4);
+    }
+
+    .alert-item.electricity-alert {
+      border-left-color: var(--amber-glow);
+    }
+
+    .alert-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+
+    .alert-building {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .alert-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .tag-water {
+      background: rgba(6, 182, 212, 0.18);
+      color: #22d3ee;
+    }
+
+    .tag-elec {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fbbf24;
+    }
+
+    .alert-time {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .alert-msg {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    .alert-impact-row {
+      display: flex;
+      gap: 16px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.08);
+      font-size: 0.75rem;
+    }
+
+    .impact-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .impact-val {
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: #f1f5f9;
+    }
+
+    /* Hackathon Explanation Box */
+    .explainer-box {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.8));
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      margin-top: 8px;
+    }
+
+    .explainer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 16px;
+    }
+
+    .explainer-feature {
+      display: flex;
+      gap: 14px;
+    }
+
+    .feat-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(56, 189, 248, 0.1);
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .feat-text h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #ffffff;
+    }
+
+    .feat-text p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    /* Modal for Injecting Leak */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-dialog {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      max-width: 480px;
+      width: 100%;
+      padding: 28px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+      animation: modal-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modal-enter {
+      from {
+        transform: scale(0.92);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: white;
+    }
+
+    .modal-desc {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: white;
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .form-select:focus {
+      border-color: #38bdf8;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toast {
+      background: var(--bg-surface-elevated);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: white;
+      padding: 12px 18px;
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      animation: toast-slide 0.3s ease-out;
+    }
+
+    @keyframes toast-slide {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-container">
+    <!-- Navbar -->
+    <header class="navbar">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>CampusWatch</h1>
+          <p>Autonomous Water & Electricity Anomaly Sentinel</p>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <span class="live-badge">
+          <span class="pulse-dot"></span>
+          DIURNAL MEDIAN ENGINE ACTIVE
+        </span>
+        <button class="btn btn-danger" id="open-leak-modal-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          Inject Leak / Waste
+        </button>
+        <button class="btn btn-ghost" id="refresh-btn" title="Refresh meter readings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          Sync
+        </button>
+      </div>
+    </header>
+
+    <!-- KPI Summary Section -->
+    <div class="kpi-grid">
+      <!-- Financial Impact -->
+      <div class="kpi-card" style="--card-accent: #f59e0b;">
+        <div class="kpi-header">
+          <span class="kpi-label">Financial Waste</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          </div>
+        </div>
+        <div class="kpi-value" id="kpi-cost">₹0.00</div>
+        <div class="kpi-subtext">
+          <span>Rates: ₹8.0/kWh • ₹0.05/Liter</span>
+        </div>
+      </div>
+
+      <!-- Water Excess -->
+      <div class="kpi-card" style="--card-accent: #06b6d4;">
+        <div class="kpi-header">
+          <span class="kpi-label">Abnormal Water Loss</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+            </svg>
+          </div>
+        </div>
+        <div class="kpi-value" id="kpi-water">0 L</div>
+        <div class="kpi-subtext">
+          <span id="kpi-water-sub">Sustained abnormal leak volume</span>
+        </div>
+      </div>
+
+      <!-- Electricity Excess -->
+      <div class="kpi-card" style="--card-accent: #eab308;">
+        <div class="kpi-header">
+          <span class="kpi-label">Wasted Electricity</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </div>
+        </div>
+        <div class="kpi-value" id="kpi-kwh">0 kWh</div>
+        <div class="kpi-subtext">
+          <span>Equipment or lights left active</span>
+        </div>
+      </div>
+
+      <!-- Carbon Impact -->
+      <div class="kpi-card" style="--card-accent: #10b981;">
+        <div class="kpi-header">
+          <span class="kpi-label">Avoidable Carbon Emissions</span>
+          <div class="kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
+            </svg>
+          </div>
+        </div>
+        <div class="kpi-value" id="kpi-co2">0.0 kg</div>
+        <div class="kpi-subtext">
+          <span>CO2 Factor: 0.82 kg/kWh</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campus Buildings Overview -->
+    <div class="section-title-wrap">
+      <div>
+        <h2 class="section-title">Campus Buildings Telemetry</h2>
+        <p class="section-subtitle">Real-time meter streams. Click any building to focus chart and anomalies.</p>
+      </div>
+    </div>
+
+    <div class="buildings-grid" id="buildings-container">
+      <!-- Populated dynamically via JS -->
+    </div>
+
+    <!-- Charts and Live Alert Feed -->
+    <div class="dashboard-content-split">
+      <!-- Chart Column -->
+      <div class="chart-card">
+        <div class="chart-controls">
+          <div>
+            <h3 class="section-title" id="chart-heading">Meter Consumption Curve</h3>
+            <p class="section-subtitle" id="chart-subheading">Select resource and time window below</p>
+          </div>
+
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <!-- Resource Toggle -->
+            <div class="control-group">
+              <button class="toggle-btn active" id="btn-res-water">💧 Water (L/h)</button>
+              <button class="toggle-btn" id="btn-res-elec">⚡ Electricity (kWh/h)</button>
+            </div>
+
+            <!-- Time Window Toggle -->
+            <div class="control-group">
+              <button class="toggle-btn" id="btn-hours-24">24h</button>
+              <button class="toggle-btn active" id="btn-hours-72">72h</button>
+              <button class="toggle-btn" id="btn-hours-168">7d</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-wrapper">
+          <canvas id="meterChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Alerts Feed Column -->
+      <div class="alerts-card">
+        <div class="alerts-header">
+          <div>
+            <h3 class="section-title">Active Anomaly Sentinels</h3>
+            <p class="section-subtitle">Merged consecutive alerts (&ge; 2 hrs)</p>
+          </div>
+          <span class="live-badge" id="alert-counter-badge"
+            style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border-color: rgba(244, 63, 94, 0.3);">
+            0 Alerts
+          </span>
+        </div>
+
+        <div class="alerts-list" id="alerts-container">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Explainer / Architecture Context -->
+    <div class="explainer-box">
+      <h3 class="section-title">Adaptive Baseline Detection Engine</h3>
+      <p class="section-subtitle" style="margin-top: 4px;">
+        CampusWatch avoids static thresholds. It automatically models circadian human activity profiles to separate
+        normal campus operations from waste.
+      </p>
+
+      <div class="explainer-grid">
+        <div class="explainer-feature">
+          <div class="feat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div class="feat-text">
+            <h4>Diurnal Median Baseline</h4>
+            <p>Learns expected consumption for each hour of the day (00:00 to 23:00) segregated by weekdays vs weekends
+              using 14-day medians.</p>
+          </div>
+        </div>
+
+        <div class="explainer-feature">
+          <div class="feat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+          </div>
+          <div class="feat-text">
+            <h4>Dual-Criteria Trigger</h4>
+            <p>Flags consumption only if actual &gt; 2.0x expected AND excess &gt; minimum threshold (100 L or 3 kWh),
+              preventing low-volume false alarms.</p>
+          </div>
+        </div>
+
+        <div class="explainer-feature">
+          <div class="feat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+          </div>
+          <div class="feat-text">
+            <h4>Temporal Merging</h4>
+            <p>Merges consecutive anomalous hours (&ge; 2 consecutive hours) into a single actionable incident report
+              with cumulative cost and CO2 impact.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inject Leak Modal -->
+  <div class="modal-overlay" id="leak-modal">
+    <div class="modal-dialog">
+      <h3 class="modal-title">Simulate Anomaly Injection</h3>
+      <p class="modal-desc">
+        Select a campus building and utility resource to simulate a realistic pipe leak or equipment left running over
+        consecutive hours.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="leak-building-select">Target Campus Building</label>
+        <select class="form-select" id="leak-building-select">
+          <option value="Hostel A">Hostel A</option>
+          <option value="Hostel B">Hostel B</option>
+          <option value="Library">Library</option>
+          <option value="Academic Block">Academic Block</option>
+          <option value="Canteen">Canteen</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="leak-resource-select">Resource Type</label>
+        <select class="form-select" id="leak-resource-select">
+          <option value="water">💧 Water Leak (Pipe burst / continuous flow)</option>
+          <option value="electricity">⚡ Electricity Waste (HVAC / Lab gear left ON)</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="close-leak-modal-btn">Cancel</button>
+        <button class="btn btn-danger" id="submit-leak-btn">Trigger 4x Anomaly Spike</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Client-side Logic -->
+  <script>
+    // State management
+    const state = {
+      selectedBuilding: "Hostel A",
+      selectedResource: "water",
+      selectedHours: 72,
+      buildings: [],
+      alerts: [],
+      summary: {},
+      chartInstance: null
+    };
+
+    // DOM references
+    const kpiCost = document.getElementById("kpi-cost");
+    const kpiWater = document.getElementById("kpi-water");
+    const kpiKwh = document.getElementById("kpi-kwh");
+    const kpiCo2 = document.getElementById("kpi-co2");
+    const buildingsContainer = document.getElementById("buildings-container");
+    const alertsContainer = document.getElementById("alerts-container");
+    const alertCounterBadge = document.getElementById("alert-counter-badge");
+    const chartHeading = document.getElementById("chart-heading");
+    const chartSubheading = document.getElementById("chart-subheading");
+
+    // Modal references
+    const leakModal = document.getElementById("leak-modal");
+    const openLeakModalBtn = document.getElementById("open-leak-modal-btn");
+    const closeLeakModalBtn = document.getElementById("close-leak-modal-btn");
+    const submitLeakBtn = document.getElementById("submit-leak-btn");
+    const leakBuildingSelect = document.getElementById("leak-building-select");
+    const leakResourceSelect = document.getElementById("leak-resource-select");
+    const refreshBtn = document.getElementById("refresh-btn");
+
+    // Toast helper
+    function showToast(message, isError = false) {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      if (isError) {
+        toast.style.borderColor = "rgba(244, 63, 94, 0.6)";
+      }
+      toast.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${isError ? '#fb7185' : '#34d399'}" stroke-width="2">
+          ${isError ? '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>' : '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'}
+        </svg>
+        <span>${message}</span>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.transition = "opacity 0.3s ease";
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // Modal handlers
+    openLeakModalBtn.addEventListener("click", () => {
+      leakBuildingSelect.value = state.selectedBuilding;
+      leakResourceSelect.value = state.selectedResource;
+      leakModal.classList.add("open");
+    });
+
+    closeLeakModalBtn.addEventListener("click", () => {
+      leakModal.classList.remove("open");
+    });
+
+    leakModal.addEventListener("click", (e) => {
+      if (e.target === leakModal) leakModal.classList.remove("open");
+    });
+
+    submitLeakBtn.addEventListener("click", async () => {
+      const building = leakBuildingSelect.value;
+      const resource = leakResourceSelect.value;
+      submitLeakBtn.disabled = true;
+      submitLeakBtn.innerText = "Injecting...";
+
+      try {
+        const res = await fetch("/api/inject-leak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ building, resource })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          leakModal.classList.remove("open");
+          showToast(`Injected 4x anomaly into ${building} (${resource})!`);
+          state.selectedBuilding = building;
+          state.selectedResource = resource;
+          updateResourceToggleButtons();
+          await fetchAllData();
+        }
+      } catch (err) {
+        showToast("Failed to inject leak: " + err.message, true);
+      } finally {
+        submitLeakBtn.disabled = false;
+        submitLeakBtn.innerText = "Trigger 4x Anomaly Spike";
+      }
+    });
+
+    refreshBtn.addEventListener("click", async () => {
+      refreshBtn.style.transform = "rotate(180deg)";
+      await fetchAllData();
+      setTimeout(() => { refreshBtn.style.transform = "none"; }, 300);
+      showToast("Data synchronized with meters");
+    });
+
+    // Resource and Hours controls
+    const btnResWater = document.getElementById("btn-res-water");
+    const btnResElec = document.getElementById("btn-res-elec");
+    const btnHours24 = document.getElementById("btn-hours-24");
+    const btnHours72 = document.getElementById("btn-hours-72");
+    const btnHours168 = document.getElementById("btn-hours-168");
+
+    function updateResourceToggleButtons() {
+      if (state.selectedResource === "water") {
+        btnResWater.classList.add("active");
+        btnResElec.classList.remove("active");
+      } else {
+        btnResElec.classList.add("active");
+        btnResWater.classList.remove("active");
+      }
+    }
+
+    btnResWater.addEventListener("click", () => {
+      state.selectedResource = "water";
+      updateResourceToggleButtons();
+      renderChart();
+    });
+
+    btnResElec.addEventListener("click", () => {
+      state.selectedResource = "electricity";
+      updateResourceToggleButtons();
+      renderChart();
+    });
+
+    function setHours(h, btn) {
+      state.selectedHours = h;
+      [btnHours24, btnHours72, btnHours168].forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderChart();
+    }
+
+    btnHours24.addEventListener("click", () => setHours(24, btnHours24));
+    btnHours72.addEventListener("click", () => setHours(72, btnHours72));
+    btnHours168.addEventListener("click", () => setHours(168, btnHours168));
+
+    // Fetch Summary
+    async function fetchSummary() {
+      try {
+        const res = await fetch("/api/summary");
+        const data = await res.json();
+        state.summary = data;
+
+        kpiCost.innerText = `₹${(data.total_cost_inr || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+        kpiWater.innerText = `${Math.round(data.total_water_liters || 0).toLocaleString()} L`;
+        kpiKwh.innerText = `${Math.round(data.total_kwh || 0).toLocaleString()} kWh`;
+        kpiCo2.innerText = `${(data.total_co2_kg || 0).toFixed(1)} kg`;
+      } catch (err) {
+        console.error("Error loading summary:", err);
+      }
+    }
+
+    // Fetch Buildings
+    async function fetchBuildings() {
+      try {
+        const res = await fetch("/api/buildings");
+        const data = await res.json();
+        state.buildings = data;
+        renderBuildings();
+      } catch (err) {
+        console.error("Error loading buildings:", err);
+      }
+    }
+
+    function renderBuildings() {
+      buildingsContainer.innerHTML = "";
+      state.buildings.forEach(b => {
+        const isSelected = b.name === state.selectedBuilding;
+        const isAlert = b.status === "alert";
+
+        const card = document.createElement("div");
+        card.className = `building-card ${isSelected ? 'active-selected' : ''}`;
+        card.innerHTML = `
+          <div class="b-header">
+            <span class="b-name">${b.name}</span>
+            <span class="b-status-badge ${isAlert ? 'b-status-alert' : 'b-status-ok'}">
+              ${isAlert ? 'ALERT' : 'NORMAL'}
+            </span>
+          </div>
+          <div class="b-meters">
+            <div class="meter-item">
+              <span class="meter-type">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5">
+                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                </svg>
+                Water
+              </span>
+              <span class="meter-val">${b.water_now} <span class="meter-unit">L/h</span></span>
+            </div>
+            <div class="meter-item">
+              <span class="meter-type">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                Power
+              </span>
+              <span class="meter-val">${b.electricity_now} <span class="meter-unit">kWh/h</span></span>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener("click", () => {
+          state.selectedBuilding = b.name;
+          renderBuildings();
+          renderChart();
+        });
+
+        buildingsContainer.appendChild(card);
+      });
+    }
+
+    // Fetch Alerts
+    async function fetchAlerts() {
+      try {
+        const res = await fetch("/api/alerts");
+        const data = await res.json();
+        state.alerts = data;
+        renderAlerts();
+      } catch (err) {
+        console.error("Error loading alerts:", err);
+      }
+    }
+
+    function renderAlerts() {
+      alertsContainer.innerHTML = "";
+      alertCounterBadge.innerText = `${state.alerts.length} Incident${state.alerts.length === 1 ? '' : 's'}`;
+
+      if (state.alerts.length === 0) {
+        alertsContainer.innerHTML = `
+          <div style="text-align: center; padding: 40px 10px; color: var(--text-dim);">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 8px; opacity: 0.6;">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <p style="font-weight: 600;">All Campus Utility Baselines Normal</p>
+            <p style="font-size: 0.76rem; margin-top: 4px;">Click 'Inject Leak / Waste' to simulate an incident.</p>
+          </div>
+        `;
+        return;
+      }
+
+      state.alerts.forEach(a => {
+        const isWater = a.resource === "water";
+        const item = document.createElement("div");
+        item.className = `alert-item ${isWater ? 'water-alert' : 'electricity-alert'}`;
+
+        const startTime = new Date(a.start_ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const endTime = new Date(a.end_ts).toLocaleString([], { hour: '2-digit', minute: '2-digit' });
+
+        item.innerHTML = `
+          <div class="alert-top">
+            <div class="alert-building">
+              ${a.building}
+              <span class="alert-tag ${isWater ? 'tag-water' : 'tag-elec'}">${a.resource}</span>
+            </div>
+            <span class="alert-time">${startTime} - ${endTime} (${a.hours}h)</span>
+          </div>
+          <div class="alert-msg">${a.message}</div>
+          <div class="alert-impact-row">
+            <div class="impact-stat">
+              <span style="color: var(--text-dim);">Loss:</span>
+              <span class="impact-val" style="color: #fbbf24;">₹${a.cost_inr.toFixed(2)}</span>
+            </div>
+            <div class="impact-stat">
+              <span style="color: var(--text-dim);">Excess:</span>
+              <span class="impact-val">${a.excess.toFixed(1)} ${a.unit}</span>
+            </div>
+            ${!isWater ? `
+              <div class="impact-stat">
+                <span style="color: var(--text-dim);">CO2:</span>
+                <span class="impact-val" style="color: #34d399;">${a.co2_kg.toFixed(1)} kg</span>
+              </div>
+            ` : ''}
+          </div>
+        `;
+
+        item.addEventListener("click", () => {
+          state.selectedBuilding = a.building;
+          state.selectedResource = a.resource;
+          updateResourceToggleButtons();
+          renderBuildings();
+          renderChart();
+        });
+
+        alertsContainer.appendChild(item);
+      });
+    }
+
+    // Render Meter Chart
+    async function renderChart() {
+      chartHeading.innerText = `${state.selectedBuilding} • ${state.selectedResource.toUpperCase()}`;
+      const unitStr = state.selectedResource === "water" ? "liters/hour" : "kWh/hour";
+      chartSubheading.innerText = `Displaying past ${state.selectedHours} hours of meter telemetry (${unitStr})`;
+
+      try {
+        const url = `/api/readings?building=${encodeURIComponent(state.selectedBuilding)}&resource=${encodeURIComponent(state.selectedResource)}&hours=${state.selectedHours}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const labels = data.map(d => {
+          const dt = new Date(d.ts);
+          return dt.toLocaleDateString([], { month: 'numeric', day: 'numeric' }) + ' ' +
+            dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        });
+        const values = data.map(d => d.value);
+
+        const ctx = document.getElementById("meterChart").getContext("2d");
+
+        if (state.chartInstance) {
+          state.chartInstance.destroy();
+        }
+
+        const isWater = state.selectedResource === "water";
+        const primaryColor = isWater ? "#06b6d4" : "#f59e0b";
+        const bgGradient = ctx.createLinearGradient(0, 0, 0, 350);
+        bgGradient.addColorStop(0, isWater ? "rgba(6, 182, 212, 0.35)" : "rgba(245, 158, 11, 0.35)");
+        bgGradient.addColorStop(1, "rgba(0, 0, 0, 0.0)");
+
+        state.chartInstance = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: `${state.selectedBuilding} (${unitStr})`,
+                data: values,
+                borderColor: primaryColor,
+                backgroundColor: bgGradient,
+                borderWidth: 2.2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: values.length > 50 ? 1 : 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: primaryColor,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                backgroundColor: 'rgba(17, 23, 38, 0.95)',
+                titleColor: '#f1f5f9',
+                bodyColor: '#cbd5e1',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                padding: 12,
+                titleFont: { family: "'Plus Jakarta Sans', sans-serif", weight: '700', size: 13 },
+                bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
+                callbacks: {
+                  label: function (context) {
+                    return ` Reading: ${context.parsed.y} ${unitStr}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.05)',
+                  drawBorder: false,
+                },
+                ticks: {
+                  color: '#64748b',
+                  font: { family: "'JetBrains Mono', monospace", size: 10 },
+                  maxTicksLimit: 10,
+                }
+              },
+              y: {
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.05)',
+                  drawBorder: false,
+                },
+                ticks: {
+                  color: '#64748b',
+                  font: { family: "'JetBrains Mono', monospace", size: 11 },
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Error updating chart:", err);
+      }
+    }
+
+    async function fetchAllData() {
+      await Promise.all([
+        fetchSummary(),
+        fetchBuildings(),
+        fetchAlerts()
+      ]);
+      await renderChart();
+    }
+
+    // Initial boot
+    fetchAllData();
+
+    // Auto-refresh poll every 30 seconds
+    setInterval(fetchAllData, 30000);
+  </script>
+  <script>
+    (function () {
+      const btn = document.createElement('button');
+      btn.textContent = '↺ Reset demo';
+      btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;padding:12px 18px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)';
+      btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = 'Resetting...';
+        try { await fetch('/api/reset', { method: 'POST' }); }
+        catch (e) { alert('Reset failed'); }
+        location.reload();
+      };
+      document.body.appendChild(btn);
+    })();
+  </script>
+</body>
+
+</html>

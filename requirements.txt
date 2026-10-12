@@ -1,0 +1,9 @@
+# CampusWatch – Python dependencies
+# Core server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.0.0
+
+# Data processing (used by simulator.py and detection.py)
+pandas>=2.0.0
+numpy>=1.24.0
