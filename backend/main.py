@@ -411,6 +411,85 @@ def reset_demo():
     clear_readings()
     seed_history(14)
     return {"ok": True}
+
+
+# ---------- Data ingestion (JSON + CSV) ----------
+import csv
+import io
+import math
+from datetime import datetime
+from typing import List
+
+from fastapi import File, UploadFile
+from pydantic import BaseModel
+
+from backend.db import insert_readings
+from backend.config import BUILDINGS, RESOURCES
+
+
+class ReadingIn(BaseModel):
+    building: str
+    resource: str
+    ts: str
+    value: float
+
+
+def _clean_rows(raw_rows):
+    """Validate rows. Returns (clean_rows, error_messages)."""
+    b_map = {b.lower(): b for b in BUILDINGS}
+    r_map = {r.lower(): r for r in RESOURCES}
+    clean, errors = [], []
+    for i, row in enumerate(raw_rows, start=1):
+        try:
+            building = b_map.get(str(row["building"]).strip().lower())
+            resource = r_map.get(str(row["resource"]).strip().lower())
+            if building is None:
+                raise ValueError(f"unknown building '{row['building']}'")
+            if resource is None:
+                raise ValueError(f"unknown resource '{row['resource']}'")
+            dt = datetime.fromisoformat(str(row["ts"]).strip())
+            dt = dt.replace(minute=0, second=0, microsecond=0, tzinfo=None)
+            value = float(row["value"])
+            if not math.isfinite(value) or value < 0:
+                raise ValueError("value must be a non-negative number")
+            clean.append({"building": building, "resource": resource,
+                          "ts": dt.isoformat(), "value": value})
+        except KeyError as e:
+            errors.append(f"row {i}: missing column {e}")
+        except (ValueError, TypeError) as e:
+            errors.append(f"row {i}: {e}")
+    return clean, errors
+
+
+def _store(raw_rows):
+    clean, errors = _clean_rows(raw_rows)
+    if not clean:
+        raise HTTPException(status_code=400,
+                            detail={"message": "No valid rows", "errors": errors[:10]})
+    insert_readings(clean)  # upsert, so re-uploading the same data never duplicates
+    return {"ok": True, "inserted": len(clean),
+            "rejected": len(errors), "errors": errors[:10]}
+
+
+@app.post("/api/ingest")
+def ingest_readings(rows: List[ReadingIn]):
+    """A meter or building system pushes hourly readings as JSON."""
+    return _store([r.model_dump() for r in rows])
+
+
+@app.post("/api/upload-csv")
+async def upload_csv(file: UploadFile = File(...)):
+    """Upload a CSV with columns: building,resource,ts,value."""
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Please upload a .csv file")
+    text = (await file.read()).decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(text))
+    cols = {(c or "").strip().lower() for c in (reader.fieldnames or [])}
+    if not {"building", "resource", "ts", "value"}.issubset(cols):
+        raise HTTPException(status_code=400,
+                            detail=f"CSV needs columns building,resource,ts,value. Found: {sorted(cols)}")
+    rows = [{(k or "").strip().lower(): v for k, v in r.items()} for r in reader]
+    return _store(rows)
     
 
 
