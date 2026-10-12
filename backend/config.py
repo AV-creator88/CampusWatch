@@ -1,3 +1,4 @@
+
 """
 Configuration settings for CampusWatch.
 Defines campus buildings, resources, utility tariffs, CO2 factors,
